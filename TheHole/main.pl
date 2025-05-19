@@ -4,7 +4,7 @@ use DBI;
 use strict;
 
 
-sub check_exploits{
+sub db_connect {
 
 	my $driver = "mysql";
 	my $database = "thehole";
@@ -14,9 +14,14 @@ sub check_exploits{
 
 	my $dbh = DBI->connect($dsn, $userid, $password ) or die $DBI::errstr;
 
+	return $dbh;
+
+}
+
+sub check_exploits{
 	#STARTING SEARCH!!!
 	
-	my ($tecnology, $version) = @_;
+	my ($dbh, $tecnology, $version) = @_;
 
 	my $sth = $dbh->prepare("SELECT * FROM exploits WHERE tecnologia = ?");
 	$sth->execute($tecnology);
@@ -33,9 +38,14 @@ sub check_exploits{
 }
 
 sub API{
+	
+	my ($target, $dbh) = @_;
+	my $ua = LWP::UserAgent->new;
+
 	open(my $fh, '<', 'exploits/api.txt') or die "Not found the api.txt: $!";
 	my @api_paths = <$fh>;
 	close($fh);
+	chomp @api_paths;
 	
 	foreach my $path (@api_paths) {
 		my $url = "$target$path";
@@ -50,7 +60,7 @@ sub API{
 			print " -> Server: $server\n";
 			print " -> X-Powered-By: $x_powered\n";
 
-			check_exploits($server, $x_powered);
+			check_exploits($dbh, $server, $x_powered);
 		} else {
 			print "[-] Fail in $url (Status: " . $res->code .")\n";
 		}
@@ -59,8 +69,9 @@ sub API{
 }
 
 sub start{
+
 	print "Put the host now: ";
-	chomp(our $target = <STDIN>);
+	chomp( my $target = <STDIN>);
 	API();
 }
 
